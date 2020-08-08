@@ -1,0 +1,19 @@
+{
+  "name": "influences-map",
+  "version": "0.1.0",
+  "description": "A project to keep track of people in entertainment and art and their influences.",
+  "main": "index.js",
+  "repository": "https://github.com/mcmire/influences-map",
+  "author": "Elliot Winkler <elliot.winkler@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "nodemon server/index.js"
+  },
+  "dependencies": {
+    "fastify": "^3.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  }
+}
