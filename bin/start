@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+print-with-color() {
+  echo -ne "\033[${1}m"
+  echo -n "${@:2}"
+  echo -e "\033[0m"
+  something_already_printed=1
+}
+
+banner() {
+  print-with-color 34 "== $@ =="
+}
+
+number-of-stopped-grakn-services() {
+  grakn server status | grep 'NOT RUNNING' | wc -l | sed -Ee 's/^[ ]+//'
+}
+
+ensure-grakn-started() {
+  local retries=0
+  local n
+
+  while true; do
+    if [[ $retries -gt 0 ]]; then
+      sleep 1
+    fi
+
+    n="$(number-of-stopped-grakn-services)" || true
+
+    if [[ $n -eq 0 ]]; then
+      break
+    elif [[ $n -eq 1 ]]; then
+      banner "Restarting Grakn"
+      grakn server stop
+      grakn server start
+    elif [[ $n -eq 2 ]]; then
+      banner "Starting Grakn"
+      grakn server start
+    fi
+
+    retries=$retries+1
+  done
+}
+
+start-web-server() {
+  banner "Starting web server"
+  nodemon server/index.js
+}
+
+ensure-grakn-started
+start-web-server
