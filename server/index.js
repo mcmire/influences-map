@@ -1,19 +1,67 @@
+const _ = require("lodash");
 const fastify = require("fastify")({ logger: true });
-const GraknClient = require("grakn-client");
+const {
+  withClient,
+  withSession,
+  withReadTransaction,
+  performQueryWithin,
+} = require("./grakn");
 
-async function openSession(keyspace) {
-  const client = new GraknClient("localhost:48555");
-  const session = await client.session(keyspace);
-  await session.close();
-  client.close();
+function serializeConcept(concept) {
+  const obj = { id: concept.id };
+
+  if (typeof concept.type === "function") {
+    obj.type = concept.type().baseType.toLowerCase().replace(/_type/, "");
+  }
+
+  if (typeof concept.value === "function") {
+    obj.value = concept.value();
+  }
+
+  return obj;
 }
 
-openSession("social_network");
+function serializeElement(element, variableNames) {
+  return variableNames.reduce((obj, variableName) => {
+    return {
+      ...obj,
+      [variableName]: serializeConcept(element.get(variableName)),
+    };
+  }, {});
+}
 
-fastify.get("/", async (request, reply) => {
-  openSession("social_network");
-  return { hello: "world" };
-});
+fastify.get("/", (request, reply) =>
+  withClient((client) =>
+    withSession(client, async (session) => {
+      return withReadTransaction(session, async (transaction) => {
+        const iterator = await performQueryWithin(
+          transaction,
+          `
+            match
+              $conan isa person,
+                has first-name "Conan",
+                has last-name "O'Brien";
+              $employer isa show,
+                has name $employer-name;
+              (employer: $employer, employee: $conan) isa employment,
+                has start-date $start-date,
+                has end-date $end-date;
+            get $employer, $employer-name, $start-date, $end-date;
+          `
+        );
+        const elements = await iterator.collect();
+        return elements.map((element) =>
+          serializeElement(element, [
+            "employer",
+            "employer-name",
+            "start-date",
+            "end-date",
+          ])
+        );
+      });
+    })
+  )
+);
 
 async function start() {
   try {

@@ -4,11 +4,6 @@ set -euo pipefail
 
 ### PROJECT SETUP ##############################################################
 
-#version-of-java() {
-  #java --version | \
-    #sed -Ee 's/^java ([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+) .+$/\1/'
-#}
-
 provision-project() {
   if ! [[ -d /Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk ]]; then
     banner "Installing Java 8 (AdoptOpenJDK 8)"
@@ -16,9 +11,15 @@ provision-project() {
   fi
 
   if ! has-executable grakn; then
-    banner "Installing grakn"
+    banner "Installing Grakn"
     brew tap graknlabs/tap
     brew install graknlabs/tap/grakn-core
+  fi
+
+  if ! has-executable grakn-workbase; then
+    banner "Installing Grakn Workbase"
+    brew tap graknlabs/tap
+    brew cask install graknlabs/tap/grakn-workbase
   fi
 }
 

@@ -45,6 +45,7 @@ ensure-grakn-started() {
 
 start-web-server() {
   banner "Starting web server"
+  #nodemon --exec "node --unhandled-rejections=strict" server/index.js
   nodemon server/index.js
 }
 
