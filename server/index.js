@@ -23,10 +23,12 @@ function serializeConcept(concept) {
 
 function serializeElement(element, variableNames) {
   return variableNames.reduce((obj, variableName) => {
-    return {
-      ...obj,
-      [variableName]: serializeConcept(element.get(variableName)),
-    };
+    const concept = element.get(variableName);
+    if (concept == null) {
+      return obj;
+    } else {
+      return { ...obj, [variableName]: serializeConcept(concept) };
+    }
   }, {});
 }
 
@@ -34,30 +36,68 @@ fastify.get("/", (request, reply) =>
   withClient((client) =>
     withSession(client, async (session) => {
       return withReadTransaction(session, async (transaction) => {
+        // Who did Conan befriend at the places he worked?
         const iterator = await performQueryWithin(
           transaction,
           `
             match
+              $employer isa show,
+                has name $employer-name;
               $conan isa person,
                 has first-name "Conan",
                 has last-name "O'Brien";
-              $employer isa show,
-                has name $employer-name;
-              (employer: $employer, employee: $conan) isa employment,
-                has start-date $start-date,
-                has end-date $end-date;
-            get $employer, $employer-name, $start-date, $end-date;
+              $conan-employment (employer: $employer, employee: $conan) isa employment,
+                has start-date $conan-start-date,
+                has end-date $conan-end-date;
+              $colleague isa person,
+                has first-name $colleague-first-name,
+                has last-name $colleague-last-name;
+              not {
+                $colleague-first-name == "Conan";
+                $colleague-last-name == "O'Brien";
+              };
+              $colleague-employment (employer: $employer, employee: $colleague) isa employment,
+                has start-date $colleague-start-date,
+                has end-date $colleague-end-date;
+              {
+                $colleague-start-date >= $conan-start-date;
+                $colleague-start-date <= $conan-end-date;
+              } or {
+                $colleague-end-date >= $conan-start-date;
+                $colleague-end-date <= $conan-end-date;
+              } or {
+                $colleague-start-date >= $conan-start-date;
+                $colleague-end-date <= $conan-end-date;
+              } or {
+                $conan-start-date >= $colleague-start-date;
+                $conan-end-date <= $colleague-end-date;
+              };
+
+            get
+              $conan,
+              $employer-name,
+              $conan-start-date,
+              $conan-end-date,
+              $colleague-first-name,
+              $colleague-last-name,
+              $colleague-start-date,
+              $colleague-end-date;
           `
         );
         const elements = await iterator.collect();
-        return elements.map((element) =>
+        const results = elements.map((element) =>
           serializeElement(element, [
-            "employer",
+            "conan",
             "employer-name",
-            "start-date",
-            "end-date",
+            "conan-start-date",
+            "conan-end-date",
+            "colleague-first-name",
+            "colleague-last-name",
+            "colleague-start-date",
+            "colleague-end-date",
           ])
         );
+        return { results };
       });
     })
   )

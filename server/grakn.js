@@ -57,9 +57,8 @@ async function performReadQuery(session, query) {
 }
 
 async function performWriteQuery(session, query) {
-  return withWriteTransaction(session, async (transaction) => {
-    const iterator = await performQueryWithin(transaction, query);
-    return iterator.collectConcepts();
+  return withWriteTransaction(session, (transaction) => {
+    return performQueryWithin(transaction, query);
   });
 }
 
