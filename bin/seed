@@ -1,6 +1,7 @@
 #!/usr/bin/env node --trace-warnings --unhandled-rejections=strict
 
-const grakn = require("../server/grakn");
+const grakn = require("../server/grakn/client");
+const model = require("../server/grakn/model");
 
 function clearKeyspace(client) {
   console.log("Clearing keyspace...");
@@ -9,130 +10,91 @@ function clearKeyspace(client) {
 
 function defineSchema(session) {
   console.log("Defining schema...");
-  return grakn.performWriteQuery(
-    session,
-    `
-      define
+  return grakn.defineSchema(session, (schema) => {
+    schema.attribute("name", "string");
+    schema.attribute("alias", "string");
+    schema.attribute("first-name", "string");
+    schema.attribute("last-name", "string");
+    schema.attribute("start-date", "datetime");
+    schema.attribute("end-date", "datetime");
+    schema.attribute("position", "string");
+    schema.attribute("source", "string", { regex: "^https?://.+$" });
 
-      name sub attribute,
-        value string;
-      alias sub attribute,
-        value string;
-      first-name sub attribute,
-        value string;
-      last-name sub attribute,
-        value string;
-      start-date sub attribute,
-        value datetime;
-      end-date sub attribute,
-        value datetime;
-      position sub attribute,
-        value string;
-      source sub attribute,
-        value string,
-        regex "^https?://.+$";
+    schema.relation("employment", {
+      relates: ["employee", "employer"],
+      has: ["position", "start-date", "end-date", "source"],
+      plays: ["employment-source", "employment-target"],
+    });
+    schema.relation("introduction", {
+      relates: ["employment-source", "employment-target"],
+      has: ["source"],
+    });
 
-      employment sub relation,
-        relates employee,
-        relates employer,
-        has position,
-        has start-date,
-        has end-date,
-        has source,
-        plays employment-source,
-        plays employment-target;
-      introduction sub relation,
-        relates employment-source,
-        relates employment-target,
-        has source;
-
-      person sub entity,
-        has first-name,
-        has last-name,
-        has alias,
-        plays employee;
-      company sub entity,
-        has name,
-        has alias,
-        plays employer;
-      show sub entity,
-        has name,
-        has alias,
-        plays employer;
-    `
-  );
+    schema.entity("person", {
+      has: ["first-name", "last-name", "alias"],
+      plays: ["employee"],
+    });
+    schema.entity("company", { has: ["name", "alias"], plays: ["employer"] });
+    schema.entity("show", { has: ["name", "alias"], plays: ["employer"] });
+  });
 }
 
 async function seedDatabase(session) {
   console.log("Seeding database...");
   console.log("- Creating show");
-  await grakn.performWriteQuery(
-    session,
-    `
-      insert $x isa show,
-        has name "Saturday Night Live",
-        has alias "SNL";
-    `
-  );
+  const snl = await model.createShow(session, {
+    name: "Saturday Night Live",
+    alias: "SNL",
+  });
   console.log("- Creating people");
-  await grakn.performWriteQuery(
-    session,
-    `
-      insert $x isa person,
-        has first-name "Conan",
-        has last-name "O'Brien";
-    `
-  );
-  await grakn.performWriteQuery(
-    session,
-    `
-      insert $x isa person,
-        has first-name "Robert",
-        has last-name "Smigel";
-    `
-  );
+  const conan = await model.createPerson(session, {
+    "first-name": "Conan",
+    "last-name": "O'Brien",
+  });
+  const smigel = await model.createPerson(session, {
+    "first-name": "Robert",
+    "last-name": "Smigel",
+  });
   console.log("- Creating employments");
-  await grakn.performWriteQuery(
+  const conanSnl = await model.createEmployment(
     session,
-    `
-      match
-        $snl isa show, has name "Saturday Night Live";
-        $conan isa person, has first-name "Conan", has last-name "O'Brien";
-      insert
-        $conan-snl (employer: $snl, employee: $conan) isa employment; $conan-snl
-          has position "writer",
-          has start-date 1988-01-01,
-          has end-date 1991-01-01,
-          has source "https://en.wikipedia.org/wiki/Conan_O%27Brien";
-    `
+    { employer: snl, employee: conan },
+    {
+      has: {
+        position: "writer",
+        //"start-date": new Date(1988, 1, 1),
+        //"end-date": new Date(1991, 1, 1),
+        "start-date": "1988-01-01",
+        "end-date": "1991-01-01",
+        source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+      },
+    }
   );
-  await grakn.performWriteQuery(
+  const smigelSnl = await model.createEmployment(
     session,
-    `
-      match
-        $snl isa show, has name "Saturday Night Live";
-        $smigel isa person, has first-name "Robert", has last-name "Smigel";
-      insert
-        $smigel-snl (employer: $snl, employee: $smigel) isa employment; $smigel-snl
-          has position "writer",
-          has start-date 1985-01-01,
-          has end-date 1993-01-01,
-          has source "https://en.wikipedia.org/wiki/Robert_Smigel";
-    `
+    { employer: snl, employee: smigel },
+    {
+      has: {
+        position: "writer",
+        //"start-date": new Date(1985, 1, 1),
+        //"end-date": new Date(1993, 1, 1),
+        "start-date": "1985-01-01",
+        "end-date": "1993-01-01",
+        source: "https://en.wikipedia.org/wiki/Robert_Smigel",
+      },
+    }
   );
-  await grakn.performWriteQuery(
+  await model.createIntroduction(
     session,
-    `
-      match
-        $conan isa person, has first-name "Conan", has last-name "O'Brien";
-        $smigel isa person, has first-name "Robert", has last-name "Smigel";
-        $conan-snl (employer: $snl, employee: $conan) isa employment;
-        $smigel-snl (employer: $snl, employee: $smigel) isa employment;
-      insert
-        $conan-smigel-intro (employment-source: $conan-snl, employment-target: $smigel-snl) isa introduction; $conan-smigel-intro
-          has source "https://en.wikipedia.org/wiki/Conan_O%27Brien",
-          has source "https://en.wikipedia.org/wiki/Robert_Smigel";
-    `
+    { "employment-source": conanSnl, "employment-target": smigelSnl },
+    {
+      has: {
+        source: [
+          "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+          "https://en.wikipedia.org/wiki/Robert_Smigel",
+        ],
+      },
+    }
   );
 }
 
@@ -146,12 +108,7 @@ async function main() {
   });
 }
 
-main()
-  .then(() => {
-    console.log("Done!");
-    process.exit();
-  })
-  .catch((error) => {
-    console.error(error.stack);
-    process.exit(1);
-  });
+main().then(() => {
+  console.log("Done!");
+  process.exit();
+});
