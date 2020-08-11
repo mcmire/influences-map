@@ -1,13 +1,18 @@
 {
   "attributes": [
     {
-      "name": "name",
+      "name": "alias",
       "type": "string",
       "opts": {}
     },
     {
-      "name": "alias",
-      "type": "string",
+      "name": "date",
+      "type": "datetime",
+      "opts": {}
+    },
+    {
+      "name": "end-date",
+      "type": "datetime",
       "opts": {}
     },
     {
@@ -21,13 +26,8 @@
       "opts": {}
     },
     {
-      "name": "start-date",
-      "type": "datetime",
-      "opts": {}
-    },
-    {
-      "name": "end-date",
-      "type": "datetime",
+      "name": "name",
+      "type": "string",
       "opts": {}
     },
     {
@@ -41,6 +41,11 @@
       "opts": {
         "regex": "^https?://.+$"
       }
+    },
+    {
+      "name": "start-date",
+      "type": "datetime",
+      "opts": {}
     }
   ],
   "entities": [
@@ -52,17 +57,19 @@
         "alias"
       ],
       "plays": [
-        "employee"
+        "hirer",
+        "hire",
+        "tenure-holder"
       ]
     },
     {
-      "name": "company",
+      "name": "organization",
       "has": [
         "name",
         "alias"
       ],
       "plays": [
-        "employer"
+        "tenure-location"
       ]
     },
     {
@@ -72,16 +79,28 @@
         "alias"
       ],
       "plays": [
-        "employer"
+        "tenure-location"
       ]
     }
   ],
   "relations": [
     {
-      "name": "employment",
+      "name": "hiring",
       "relates": [
-        "employee",
-        "employer"
+        "hirer",
+        "hire"
+      ],
+      "has": [
+        "date",
+        "source"
+      ],
+      "plays": []
+    },
+    {
+      "name": "tenure",
+      "relates": [
+        "tenure-location",
+        "tenure-holder"
       ],
       "has": [
         "position",
@@ -90,17 +109,18 @@
         "source"
       ],
       "plays": [
-        "employment-source",
-        "employment-target"
+        "subject-tenure",
+        "object-tenure"
       ]
     },
     {
       "name": "introduction",
       "relates": [
-        "employment-source",
-        "employment-target"
+        "subject-tenure",
+        "object-tenure"
       ],
       "has": [
+        "date",
         "source"
       ],
       "plays": []

@@ -11,31 +11,42 @@ function clearKeyspace(client) {
 function defineSchema(session) {
   console.log("Defining schema...");
   return session.defineSchema((schema) => {
-    schema.attribute("name", "string");
     schema.attribute("alias", "string");
+    schema.attribute("date", "datetime");
+    schema.attribute("end-date", "datetime");
     schema.attribute("first-name", "string");
     schema.attribute("last-name", "string");
-    schema.attribute("start-date", "datetime");
-    schema.attribute("end-date", "datetime");
+    schema.attribute("name", "string");
     schema.attribute("position", "string");
     schema.attribute("source", "string", { regex: "^https?://.+$" });
+    schema.attribute("start-date", "datetime");
 
-    schema.relation("employment", {
-      relates: ["employee", "employer"],
+    schema.relation("hiring", {
+      relates: ["hirer", "hire"],
+      has: ["date", "source"],
+    });
+    schema.relation("tenure", {
+      relates: ["tenure-location", "tenure-holder"],
       has: ["position", "start-date", "end-date", "source"],
-      plays: ["employment-source", "employment-target"],
+      plays: ["subject-tenure", "object-tenure"],
     });
     schema.relation("introduction", {
-      relates: ["employment-source", "employment-target"],
-      has: ["source"],
+      relates: ["subject-tenure", "object-tenure"],
+      has: ["date", "source"],
     });
 
     schema.entity("person", {
       has: ["first-name", "last-name", "alias"],
-      plays: ["employee"],
+      plays: ["hirer", "hire", "tenure-holder"],
     });
-    schema.entity("company", { has: ["name", "alias"], plays: ["employer"] });
-    schema.entity("show", { has: ["name", "alias"], plays: ["employer"] });
+    schema.entity("organization", {
+      has: ["name", "alias"],
+      plays: ["tenure-location"],
+    });
+    schema.entity("show", {
+      has: ["name", "alias"],
+      plays: ["tenure-location"],
+    });
   });
 }
 
@@ -44,24 +55,88 @@ async function seedDatabase(session, schemaDefinition) {
 
   const model = new Model(session, schemaDefinition);
 
-  console.log("- Creating show");
+  console.log("- Creating organizations");
+  // The Groundlings is an organization.
+  const groundlings = await model.createEntity("organization", {
+    name: "The Groundlings",
+  });
+
+  console.log("- Creating shows");
+  // Saturday Night Live (also known as SNL) is a show.
   const snl = await model.createEntity("show", {
     name: "Saturday Night Live",
     alias: "SNL",
   });
+  // The Simpsons is a show.
+  const simpsons = await model.createEntity("show", {
+    name: "The Simpsons",
+  });
+
   console.log("- Creating people");
+  // Conan O'Brien is a person.
   const conan = await model.createEntity("person", {
     "first-name": "Conan",
     "last-name": "O'Brien",
   });
+  // Lisa Kudrow is a person.
+  const lisaKudrow = await model.createEntity("person", {
+    "first-name": "Lisa",
+    "last-name": "Kudrow",
+  });
+  // Robert Smigel is a person.
   const smigel = await model.createEntity("person", {
     "first-name": "Robert",
     "last-name": "Smigel",
   });
-  console.log("- Creating employments");
+  // Lorne Michaels is a person.
+  const lorne = await model.createEntity("person", {
+    "first-name": "Lorne",
+    "last-name": "Michaels",
+  });
+
+  console.log("- Creating hirings");
+  // Lorne Michaels hired Conan for SNL in January 1988 (source: Wikipedia).
+  const lorneHiringConan = await model.createRelation(
+    "hiring",
+    { hirer: lorne, hire: conan },
+    {
+      has: {
+        date: new Date(1988, 1, 1),
+        source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+      },
+    }
+  );
+
+  console.log("- Creating tenures");
+  // Lorne Michaels is the creator and showrunner of SNL.
+  const lorneSnl = await model.createRelation(
+    "tenure",
+    { "tenure-location": snl, "tenure-holder": lorne },
+    {
+      has: {
+        position: ["creator", "showrunner"],
+        "start-date": new Date(1975, 10, 11),
+        source: "https://en.wikipedia.org/wiki/Lorne_Michaels",
+      },
+    }
+  );
+  // Conan studied at the Groundlings between 1986 and 1988 (source: Wikipedia).
+  const conanGroundlings = await model.createRelation(
+    "tenure",
+    { "tenure-location": groundlings, "tenure-holder": conan },
+    {
+      has: {
+        position: "performer",
+        "start-date": new Date(1986, 1, 1),
+        "end-date": new Date(1991, 1, 1),
+        source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+      },
+    }
+  );
+  // Conan worked as a writer at SNL between 1988 and 1991 (source: Wikipedia).
   const conanSnl = await model.createRelation(
-    "employment",
-    { employer: snl, employee: conan },
+    "tenure",
+    { "tenure-location": snl, "tenure-holder": conan },
     {
       has: {
         position: "writer",
@@ -71,9 +146,39 @@ async function seedDatabase(session, schemaDefinition) {
       },
     }
   );
+  // Conan worked as a writer and producer at the Simpsons between 1991 and
+  // 4/26/1993 (source: Wikipedia).
+  const conanSimpsons = await model.createRelation(
+    "tenure",
+    { "tenure-location": simpsons, "tenure-holder": conan },
+    {
+      has: {
+        position: ["writer", "producer"],
+        "start-date": new Date(1991, 1, 1),
+        "end-date": new Date(1993, 4, 26),
+        source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+      },
+    }
+  );
+  // Lisa Kudrow studied at the Groundlings between 1986 and 1988 (source:
+  // Wikipedia).
+  const lisaKudrowGroundlings = await model.createRelation(
+    "tenure",
+    { "tenure-location": groundlings, "tenure-holder": lisaKudrow },
+    {
+      has: {
+        position: "performer",
+        "start-date": new Date(1986, 1, 1),
+        "end-date": new Date(1992, 1, 1),
+        source: "https://en.wikipedia.org/wiki/Lisa_Kudrow",
+      },
+    }
+  );
+  // Robert Smigel worked as a writer at SNL between 1985 and 1993 (source:
+  // Wikipedia).
   const smigelSnl = await model.createRelation(
-    "employment",
-    { employer: snl, employee: smigel },
+    "tenure",
+    { "tenure-location": snl, "tenure-holder": smigel },
     {
       has: {
         position: "writer",
@@ -83,11 +188,40 @@ async function seedDatabase(session, schemaDefinition) {
       },
     }
   );
+
+  console.log("- Creating introductions");
+  // Conan met Lisa Kudrow while studying at the Groundlings.
   await model.createRelation(
     "introduction",
-    { "employment-source": conanSnl, "employment-target": smigelSnl },
+    {
+      "subject-tenure": conanGroundlings,
+      "object-tenure": lisaKudrowGroundlings,
+    },
     {
       has: {
+        date: new Date(1986, 1, 1),
+        source: "https://en.wikipedia.org/wiki/Lisa_Kudrow",
+      },
+    }
+  );
+  // Conan met Lorne Michaels while working at SNL.
+  await model.createRelation(
+    "introduction",
+    { "subject-tenure": conanSnl, "object-tenure": lorneSnl },
+    {
+      has: {
+        date: new Date(1988, 1, 1),
+        source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
+      },
+    }
+  );
+  // Conan met Robert Smigel while working at SNL.
+  await model.createRelation(
+    "introduction",
+    { "subject-tenure": conanSnl, "object-tenure": smigelSnl },
+    {
+      has: {
+        date: new Date(1988, 1, 1),
         source: [
           "https://en.wikipedia.org/wiki/Conan_O%27Brien",
           "https://en.wikipedia.org/wiki/Robert_Smigel",
