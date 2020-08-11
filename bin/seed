@@ -45,21 +45,22 @@ async function seedDatabase(session, schemaDefinition) {
   const model = new Model(session, schemaDefinition);
 
   console.log("- Creating show");
-  const snl = await model.createShow({
+  const snl = await model.createEntity("show", {
     name: "Saturday Night Live",
     alias: "SNL",
   });
   console.log("- Creating people");
-  const conan = await model.createPerson({
+  const conan = await model.createEntity("person", {
     "first-name": "Conan",
     "last-name": "O'Brien",
   });
-  const smigel = await model.createPerson({
+  const smigel = await model.createEntity("person", {
     "first-name": "Robert",
     "last-name": "Smigel",
   });
   console.log("- Creating employments");
-  const conanSnl = await model.createEmployment(
+  const conanSnl = await model.createRelation(
+    "employment",
     { employer: snl, employee: conan },
     {
       has: {
@@ -72,7 +73,8 @@ async function seedDatabase(session, schemaDefinition) {
       },
     }
   );
-  const smigelSnl = await model.createEmployment(
+  const smigelSnl = await model.createRelation(
+    "employment",
     { employer: snl, employee: smigel },
     {
       has: {
@@ -85,7 +87,8 @@ async function seedDatabase(session, schemaDefinition) {
       },
     }
   );
-  await model.createIntroduction(
+  await model.createRelation(
+    "introduction",
     { "employment-source": conanSnl, "employment-target": smigelSnl },
     {
       has: {

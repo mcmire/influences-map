@@ -42,42 +42,23 @@ class Model {
     this.schemaDefinition = schemaDefinition;
   }
 
-  async createShow(attributes) {
+  async createEntity(type, attributes) {
     const has = buildHas(attributes);
-    assertValidKeys(has, ["name", "alias"]);
-    const show = await this._insertEntity("show", { has });
-    return { ...show, ...buildAttributes(attributes) };
-  }
+    const entityDefinition = this.schemaDefinition.findEntity(type);
+    assertValidKeys(has, entityDefinition.attributes);
 
-  async createPerson(attributes) {
-    const has = buildHas(attributes);
-    assertValidKeys(has, ["first-name", "last-name"]);
-    const person = await this._insertEntity("person", { has });
-    return { ...person, ...buildAttributes(attributes) };
-  }
-
-  createEmployment(relatedObjectsByRole, { has = {} } = {}) {
-    assertValidKeys(relatedObjectsByRole, ["employer", "employee"]);
-    return this._insertRelation("employment", relatedObjectsByRole, { has });
-  }
-
-  createIntroduction(relatedObjectsByRole, { has = {} } = {}) {
-    assertValidKeys(relatedObjectsByRole, [
-      "employment-source",
-      "employment-target",
-    ]);
-    return this._insertRelation("introduction", relatedObjectsByRole, { has });
-  }
-
-  async _insertEntity(type, { has = {} } = {}) {
     const query =
       "insert " + this._buildStatementLines({ type, has }).join("\n");
     const iterator = await this.session.performWriteQuery(query);
     const concepts = await iterator.collectConcepts();
-    return concepts[concepts.length - 1];
+    const entity = concepts[concepts.length - 1];
+    return { ...entity, ...buildAttributes(attributes) };
   }
 
-  async _insertRelation(type, relatedObjectsByRole, { has = {} } = {}) {
+  async createRelation(type, relatedObjectsByRole, { has = {} } = {}) {
+    const relationDefinition = this.schemaDefinition.findRelation(type);
+    assertValidKeys(relatedObjectsByRole, relationDefinition.relates);
+
     // XXX: relatedObjectsByRole? relationship?
     // should variable names include the $?
     const variablesByRole = _.reduce(

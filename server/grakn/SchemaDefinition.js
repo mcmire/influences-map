@@ -22,6 +22,26 @@ class SchemaDefinition {
     this.relations.push({ name, relates, has, plays });
   }
 
+  findEntity(name) {
+    const entity = this.entities.find((entity) => entity.name === name);
+
+    if (entity == null) {
+      throw new Error(`Could not find entity: ${name}`);
+    } else {
+      return entity;
+    }
+  }
+
+  findRelation(name) {
+    const relation = this.relations.find((relation) => relation.name === name);
+
+    if (relation == null) {
+      throw new Error(`Could not find relation: ${name}`);
+    } else {
+      return relation;
+    }
+  }
+
   async save() {
     await fs.promises.mkdir(path.dirname(SCHEMA_FILE), { recursive: true });
     return fs.promises.writeFile(
