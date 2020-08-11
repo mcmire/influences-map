@@ -65,10 +65,8 @@ async function seedDatabase(session, schemaDefinition) {
     {
       has: {
         position: "writer",
-        //"start-date": new Date(1988, 1, 1),
-        //"end-date": new Date(1991, 1, 1),
-        "start-date": "1988-01-01",
-        "end-date": "1991-01-01",
+        "start-date": new Date(1988, 1, 1),
+        "end-date": new Date(1991, 1, 1),
         source: "https://en.wikipedia.org/wiki/Conan_O%27Brien",
       },
     }
@@ -79,10 +77,8 @@ async function seedDatabase(session, schemaDefinition) {
     {
       has: {
         position: "writer",
-        //"start-date": new Date(1985, 1, 1),
-        //"end-date": new Date(1993, 1, 1),
-        "start-date": "1985-01-01",
-        "end-date": "1993-01-01",
+        "start-date": new Date(1985, 1, 1),
+        "end-date": new Date(1993, 1, 1),
         source: "https://en.wikipedia.org/wiki/Robert_Smigel",
       },
     }

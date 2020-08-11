@@ -1,4 +1,5 @@
 const _ = require("lodash");
+const dateFns = require("date-fns");
 
 const { formatStatementClauses } = require("./util");
 
@@ -11,15 +12,26 @@ function assertValidKeys(attributes, names) {
 }
 
 function buildHas(attributes) {
-  return Array.isArray(attributes)
-    ? attributes.reduce((obj, [name, value]) => {
-        if (name in obj) {
-          return { ...obj, [name]: obj[name].concat([value]) };
-        } else {
-          return { ...obj, [name]: [value] };
-        }
-      }, {})
-    : attributes;
+  if (Array.isArray(attributes)) {
+    return attributes.reduce((obj, [name, value]) => {
+      if (name in obj) {
+        return { ...obj, [name]: obj[name].concat([value]) };
+      } else {
+        return { ...obj, [name]: [value] };
+      }
+    }, {});
+  } else {
+    return _.reduce(
+      attributes,
+      (obj, valueOrValues, name) => {
+        const value = Array.isArray(valueOrValues)
+          ? valueOrValues
+          : [valueOrValues];
+        return { ...obj, [name]: value };
+      },
+      {}
+    );
+  }
 }
 
 function buildAttributes(attributes) {
@@ -42,7 +54,7 @@ class Model {
     this.schemaDefinition = schemaDefinition;
   }
 
-  async createEntity(type, attributes) {
+  async createEntity(type, attributes = {}) {
     const has = buildHas(attributes);
     const entityDefinition = this.schemaDefinition.findEntity(type);
     assertValidKeys(has, entityDefinition.attributes);
@@ -55,33 +67,31 @@ class Model {
     return { ...entity, ...buildAttributes(attributes) };
   }
 
-  async createRelation(type, relatedObjectsByRole, { has = {} } = {}) {
+  async createRelation(type, relationWithObjects, { has = {} } = {}) {
+    has = buildHas(has);
     const relationDefinition = this.schemaDefinition.findRelation(type);
-    assertValidKeys(relatedObjectsByRole, relationDefinition.relates);
+    assertValidKeys(relationWithObjects, relationDefinition.relates);
 
-    // XXX: relatedObjectsByRole? relationship?
-    // should variable names include the $?
-    const variablesByRole = _.reduce(
-      Object.keys(relatedObjectsByRole),
+    const relationWithVariables = _.reduce(
+      Object.keys(relationWithObjects),
       (obj, role, index) => {
-        return { ...obj, [role]: `a${index}` };
+        return { ...obj, [role]: `$a${index}` };
       },
       {}
     );
     const matchStatementLines = _.flatMap(
-      relatedObjectsByRole,
+      relationWithObjects,
       (relationObject, role) =>
         this._buildStatementLines({
-          variableName: variablesByRole[role],
+          subjectVariable: relationWithVariables[role],
           id: relationObject.id,
         })
     );
 
     const insertStatementLines = this._buildStatementLines({
-      variableName: `a${Object.values(relatedObjectsByRole).length}`,
+      subjectVariable: `$a${Object.values(relationWithObjects).length}`,
       type: type,
-      // XXX: This doesn't feel right
-      relationship: variablesByRole,
+      relationWithVariables: relationWithVariables,
       has: has,
     });
 
@@ -99,23 +109,23 @@ class Model {
   }
 
   _buildStatementLines({
-    variableName = "x",
+    subjectVariable = "$x",
     type = null,
     id = null,
-    relationship = null,
+    relationWithVariables = null,
     has = {},
   }) {
     if (id == null && type == null) {
       throw new Error("Either id or type must be given");
     }
 
-    let initialClause = `$${variableName}`;
-    if (relationship != null) {
+    let initialClause = `${subjectVariable}`;
+    if (relationWithVariables != null) {
       initialClause +=
         " (" +
         _.map(
-          relationship,
-          (playerVariableName, role) => `${role}: $${playerVariableName}`
+          relationWithVariables,
+          (playerVariable, role) => `${role}: ${playerVariable}`
         ).join(", ") +
         ")";
     }
@@ -126,12 +136,20 @@ class Model {
     }
 
     const clauses = [initialClause].concat(
-      _.map(has, (value, name) => {
-        if (/-date$/.test(name) || /-time$/.test(name)) {
-          return `has ${name} ${value}`;
-        } else {
-          return `has ${name} "${value}"`;
-        }
+      _.flatMap(has, (values, name) => {
+        return _.map(values, (value) => {
+          const attributeDefinition = this.schemaDefinition.findAttribute(name);
+
+          if (attributeDefinition.type === "datetime") {
+            const normalizedValue =
+              value instanceof Date
+                ? dateFns.format(value, "yyyy-MM-dd")
+                : value;
+            return `has ${name} ${normalizedValue}`;
+          } else {
+            return `has ${name} "${value}"`;
+          }
+        });
       })
     );
 

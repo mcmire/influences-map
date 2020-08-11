@@ -3,6 +3,7 @@ const OfficialGraknClient = require("grakn-client");
 
 const config = require("../../config/database.json");
 const { ENVIRONMENT } = require("../globals");
+const logger = require("../logger");
 const SchemaDefinition = require("./SchemaDefinition");
 const SchemaDefinitionQuery = require("./SchemaDefinitionQuery");
 
@@ -131,20 +132,35 @@ class GraknTransaction {
 
   async performQuery(query) {
     try {
+      logger.debug("Performing query:");
+      logger.debug(
+        "--- START OF QUERY ------------------------------------------------------------"
+      );
+      logger.debug(query);
+      logger.debug(
+        "--- END OF QUERY --------------------------------------------------------------"
+      );
+
       return await this.transaction.query(this._stripMultilineString(query));
     } catch (error) {
-      throw new Error(
+      const message =
         "Query to define schema failed. Original error follows:\n\n" +
-          "--- START OF ERROR ------------------------------------------------------------\n" +
-          error.message +
-          "\n" +
-          "--- END OF ERROR --------------------------------------------------------------\n\n" +
+        "--- START OF ERROR ------------------------------------------------------------\n" +
+        error.message +
+        "\n" +
+        "--- END OF ERROR --------------------------------------------------------------";
+
+      if (logger.gt("debug")) {
+        message +=
+          "\n\n" +
           "Full query:\n\n" +
           "--- START OF QUERY ------------------------------------------------------------\n" +
           query +
           "\n" +
-          "--- END OF QUERY --------------------------------------------------------------\n"
-      );
+          "--- END OF QUERY --------------------------------------------------------------\n";
+      }
+
+      throw new Error(message);
     }
   }
 

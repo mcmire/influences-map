@@ -22,6 +22,18 @@ class SchemaDefinition {
     this.relations.push({ name, relates, has, plays });
   }
 
+  findAttribute(name) {
+    const attribute = this.attributes.find(
+      (attribute) => attribute.name === name
+    );
+
+    if (attribute == null) {
+      throw new Error(`Could not find attribute: ${name}`);
+    } else {
+      return attribute;
+    }
+  }
+
   findEntity(name) {
     const entity = this.entities.find((entity) => entity.name === name);
 
