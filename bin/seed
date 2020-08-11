@@ -1,16 +1,16 @@
 #!/usr/bin/env node --trace-warnings --unhandled-rejections=strict
 
-const grakn = require("../server/grakn/client");
-const model = require("../server/grakn/model");
+const withGraknClient = require("../server/grakn/withGraknClient");
+const Model = require("../server/grakn/Model");
 
 function clearKeyspace(client) {
   console.log("Clearing keyspace...");
-  return grakn.clearKeyspace(client);
+  return client.clearKeyspace();
 }
 
 function defineSchema(session) {
   console.log("Defining schema...");
-  return grakn.defineSchema(session, (schema) => {
+  return session.defineSchema((schema) => {
     schema.attribute("name", "string");
     schema.attribute("alias", "string");
     schema.attribute("first-name", "string");
@@ -39,25 +39,27 @@ function defineSchema(session) {
   });
 }
 
-async function seedDatabase(session) {
+async function seedDatabase(session, schemaDefinition) {
   console.log("Seeding database...");
+
+  const model = new Model(session, schemaDefinition);
+
   console.log("- Creating show");
-  const snl = await model.createShow(session, {
+  const snl = await model.createShow({
     name: "Saturday Night Live",
     alias: "SNL",
   });
   console.log("- Creating people");
-  const conan = await model.createPerson(session, {
+  const conan = await model.createPerson({
     "first-name": "Conan",
     "last-name": "O'Brien",
   });
-  const smigel = await model.createPerson(session, {
+  const smigel = await model.createPerson({
     "first-name": "Robert",
     "last-name": "Smigel",
   });
   console.log("- Creating employments");
   const conanSnl = await model.createEmployment(
-    session,
     { employer: snl, employee: conan },
     {
       has: {
@@ -71,7 +73,6 @@ async function seedDatabase(session) {
     }
   );
   const smigelSnl = await model.createEmployment(
-    session,
     { employer: snl, employee: smigel },
     {
       has: {
@@ -85,7 +86,6 @@ async function seedDatabase(session) {
     }
   );
   await model.createIntroduction(
-    session,
     { "employment-source": conanSnl, "employment-target": smigelSnl },
     {
       has: {
@@ -99,11 +99,11 @@ async function seedDatabase(session) {
 }
 
 async function main() {
-  return grakn.withClient(async (client) => {
+  return withGraknClient(async (client) => {
     await clearKeyspace(client);
-    await grakn.withSession(client, async (session) => {
-      await defineSchema(session);
-      await seedDatabase(session);
+    return client.withSession(async (session) => {
+      const schemaDefinition = await defineSchema(session);
+      await seedDatabase(session, schemaDefinition);
     });
   });
 }

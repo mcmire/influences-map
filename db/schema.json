@@ -1,0 +1,109 @@
+{
+  "attributes": [
+    {
+      "name": "name",
+      "type": "string",
+      "opts": {}
+    },
+    {
+      "name": "alias",
+      "type": "string",
+      "opts": {}
+    },
+    {
+      "name": "first-name",
+      "type": "string",
+      "opts": {}
+    },
+    {
+      "name": "last-name",
+      "type": "string",
+      "opts": {}
+    },
+    {
+      "name": "start-date",
+      "type": "datetime",
+      "opts": {}
+    },
+    {
+      "name": "end-date",
+      "type": "datetime",
+      "opts": {}
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "opts": {}
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "opts": {
+        "regex": "^https?://.+$"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "name": "person",
+      "has": [
+        "first-name",
+        "last-name",
+        "alias"
+      ],
+      "plays": [
+        "employee"
+      ]
+    },
+    {
+      "name": "company",
+      "has": [
+        "name",
+        "alias"
+      ],
+      "plays": [
+        "employer"
+      ]
+    },
+    {
+      "name": "show",
+      "has": [
+        "name",
+        "alias"
+      ],
+      "plays": [
+        "employer"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "name": "employment",
+      "relates": [
+        "employee",
+        "employer"
+      ],
+      "has": [
+        "position",
+        "start-date",
+        "end-date",
+        "source"
+      ],
+      "plays": [
+        "employment-source",
+        "employment-target"
+      ]
+    },
+    {
+      "name": "introduction",
+      "relates": [
+        "employment-source",
+        "employment-target"
+      ],
+      "has": [
+        "source"
+      ],
+      "plays": []
+    }
+  ]
+}

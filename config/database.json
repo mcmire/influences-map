@@ -1,0 +1,5 @@
+{
+  "development": {
+    "keyspaceName": "influences_map_development"
+  }
+}

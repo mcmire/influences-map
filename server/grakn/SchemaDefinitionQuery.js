@@ -1,7 +1,6 @@
 const _ = require("lodash");
 
-const grakn = require("./client");
-const graknUtil = require("./util");
+const { formatStatementClauses } = require("./util");
 const SchemaDefinition = require("./SchemaDefinition");
 
 class SchemaDefinitionQuery {
@@ -86,7 +85,7 @@ class SchemaDefinitionQuery {
       });
     });
 
-    return graknUtil.formatStatementClauses(clauses);
+    return formatStatementClauses(clauses);
   }
 }
 
