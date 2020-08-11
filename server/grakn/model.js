@@ -101,7 +101,7 @@ class Model {
       "insert",
       insertStatementLines.map((line) => `  ${line}`).join("\n"),
     ];
-    const query = sections.join("\n\n");
+    const query = sections.join("\n");
 
     const iterator = await this.session.performWriteQuery(query);
     const concepts = await iterator.collectConcepts();
